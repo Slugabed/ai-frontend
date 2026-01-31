@@ -39,3 +39,26 @@ export interface ScoredChunk {
   fileName: string;
   score: number;
 }
+
+// Image types
+export interface ImageInfo {
+  id: number;
+  fileName: string;
+  originalFileName: string;
+  fileSize: number;
+  contentType: string;
+  width?: number;
+  height?: number;
+  uploadDate: string;
+  ownerEmail?: string;
+}
+
+export interface ImageSearchResult {
+  id: number;
+  fileName: string;
+  originalFileName: string;
+  fileSize: number;
+  contentType: string;
+  uploadDate: string;
+  score: number;
+}

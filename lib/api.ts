@@ -1,4 +1,4 @@
-import { FileInfo, DeleteResponse, UploadResult, ScoredChunk } from "@/types";
+import { FileInfo, DeleteResponse, UploadResult, ScoredChunk, ImageInfo, ImageSearchResult } from "@/types";
 import { getToken } from "./auth";
 
 const API_BASE_URL = "/api";
@@ -98,6 +98,102 @@ export async function searchDocuments(question: string): Promise<ScoredChunk[]> 
   });
   if (!response.ok) {
     throw new Error("Search failed");
+  }
+  return response.json();
+}
+
+// Image API functions
+export async function uploadImage(file: File): Promise<UploadResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/images`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: formData,
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    return {
+      success: true,
+      message: `Image uploaded: ${data.originalFileName}`,
+      fileName: file.name,
+    };
+  } else {
+    return {
+      success: false,
+      message: "Failed to upload image",
+      fileName: file.name,
+    };
+  }
+}
+
+export async function uploadImages(files: File[]): Promise<UploadResult[]> {
+  return Promise.all(files.map(uploadImage));
+}
+
+export async function fetchImages(): Promise<ImageInfo[]> {
+  const response = await fetch(`${API_BASE_URL}/images`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch images");
+  }
+  return response.json();
+}
+
+export async function downloadImage(id: number): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/images/${id}/download`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to download image");
+  }
+  return response.blob();
+}
+
+export function getImageDownloadUrl(id: number): string {
+  return `${API_BASE_URL}/images/${id}/download`;
+}
+
+export async function deleteImageById(id: number): Promise<DeleteResponse> {
+  const response = await fetch(`${API_BASE_URL}/images/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to delete image");
+  }
+  return response.json();
+}
+
+export async function deleteImagesByIds(ids: number[]): Promise<DeleteResponse> {
+  const response = await fetch(`${API_BASE_URL}/images`, {
+    method: "DELETE",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ ids }),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to delete images");
+  }
+  return response.json();
+}
+
+export async function searchImages(query: string, limit: number = 10): Promise<ImageSearchResult[]> {
+  const response = await fetch(`${API_BASE_URL}/images/search`, {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query, limit }),
+  });
+  if (!response.ok) {
+    throw new Error("Image search failed");
   }
   return response.json();
 }

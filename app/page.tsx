@@ -1,23 +1,31 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { FileInfo } from "@/types";
-import { fetchFiles } from "@/lib/api";
+import { FileInfo, ImageInfo } from "@/types";
+import { fetchFiles, fetchImages } from "@/lib/api";
 import { FilesTable } from "@/components/files-table";
 import { FileUpload } from "@/components/file-upload";
 import { SearchSection } from "@/components/search-section";
+import { ImagesTable } from "@/components/images-table";
+import { ImageUpload } from "@/components/image-upload";
+import { ImageSearchSection } from "@/components/image-search-section";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, LogOut, Shield } from "lucide-react";
+import { RefreshCw, LogOut, Shield, FileText, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
+type TabType = "documents" | "images";
+
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<TabType>("documents");
   const [files, setFiles] = useState<FileInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [images, setImages] = useState<ImageInfo[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+  const [isLoadingImages, setIsLoadingImages] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user, isLoading: authLoading, isAdmin, logout } = useAuth();
 
   const loadFiles = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoadingFiles(true);
     setError(null);
     try {
       const data = await fetchFiles();
@@ -26,15 +34,30 @@ export default function Home() {
       setError("Failed to load files. Is the backend running?");
       console.error(err);
     } finally {
-      setIsLoading(false);
+      setIsLoadingFiles(false);
+    }
+  }, []);
+
+  const loadImages = useCallback(async () => {
+    setIsLoadingImages(true);
+    setError(null);
+    try {
+      const data = await fetchImages();
+      setImages(data);
+    } catch (err) {
+      setError("Failed to load images. Is the backend running?");
+      console.error(err);
+    } finally {
+      setIsLoadingImages(false);
     }
   }, []);
 
   useEffect(() => {
     if (user) {
       loadFiles();
+      loadImages();
     }
-  }, [loadFiles, user]);
+  }, [loadFiles, loadImages, user]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -53,6 +76,9 @@ export default function Home() {
       </div>
     );
   }
+
+  const isLoading = activeTab === "documents" ? isLoadingFiles : isLoadingImages;
+  const handleRefresh = activeTab === "documents" ? loadFiles : loadImages;
 
   return (
     <div className="min-h-screen bg-background">
@@ -79,12 +105,39 @@ export default function Home() {
       </header>
 
       <div className="container mx-auto py-8 px-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl font-bold">PDF Files</h2>
+        {/* Tabs */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex rounded-lg border p-1 bg-muted">
+            <button
+              onClick={() => setActiveTab("documents")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "documents"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              Documents
+            </button>
+            <button
+              onClick={() => setActiveTab("images")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "images"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <ImageIcon className="h-4 w-4" />
+              Images
+            </button>
+          </div>
+
+          <div className="flex-1" />
+
           <Button
             variant="outline"
             size="sm"
-            onClick={loadFiles}
+            onClick={handleRefresh}
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
@@ -92,27 +145,63 @@ export default function Home() {
           </Button>
         </div>
 
-        <FileUpload onUploadComplete={loadFiles} />
+        {/* Documents Tab */}
+        {activeTab === "documents" && (
+          <>
+            <h2 className="text-3xl font-bold mb-6">PDF Files</h2>
 
-        <div className="mt-6">
-          <SearchSection />
-        </div>
+            <FileUpload onUploadComplete={loadFiles} />
 
-        {error && (
-          <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md mb-4 mt-6">
-            {error}
-          </div>
+            <div className="mt-6">
+              <SearchSection />
+            </div>
+
+            {error && (
+              <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md mb-4 mt-6">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-6">
+              {isLoadingFiles ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Loading...</p>
+                </div>
+              ) : (
+                <FilesTable files={files} onRefresh={loadFiles} isAdmin={isAdmin} />
+              )}
+            </div>
+          </>
         )}
 
-        <div className="mt-6">
-          {isLoading ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading...</p>
+        {/* Images Tab */}
+        {activeTab === "images" && (
+          <>
+            <h2 className="text-3xl font-bold mb-6">Images</h2>
+
+            <ImageUpload onUploadComplete={loadImages} />
+
+            <div className="mt-6">
+              <ImageSearchSection />
             </div>
-          ) : (
-            <FilesTable files={files} onRefresh={loadFiles} isAdmin={isAdmin} />
-          )}
-        </div>
+
+            {error && (
+              <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md mb-4 mt-6">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-6">
+              {isLoadingImages ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Loading...</p>
+                </div>
+              ) : (
+                <ImagesTable images={images} onRefresh={loadImages} isAdmin={isAdmin} />
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
