@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Trash2, Download, Image as ImageIcon } from "lucide-react";
 import { ImageInfo } from "@/types";
-import { deleteImageById, deleteImagesByIds, downloadImage, getImageDownloadUrl } from "@/lib/api";
+import { deleteImageById, deleteImagesByIds, downloadImage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -174,7 +174,7 @@ export function ImagesTable({ images, onRefresh, isAdmin = false }: ImagesTableP
             {/* Image */}
             <div className="aspect-square bg-muted">
               <img
-                src={getImageDownloadUrl(image.id)}
+                src={image.viewUrl}
                 alt={image.originalFileName}
                 className="w-full h-full object-cover"
                 loading="lazy"

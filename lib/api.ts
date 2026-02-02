@@ -34,13 +34,6 @@ export async function uploadFiles(files: File[]): Promise<UploadResult[]> {
   return Promise.all(files.map(uploadFile));
 }
 
-export function getDownloadUrl(id: number): string {
-  const token = getToken();
-  // For download links, we'll use a different approach since we can't add headers to <a> tags
-  // We'll need to handle this in the component
-  return `${API_BASE_URL}/files/${id}/download`;
-}
-
 export async function downloadFile(id: number): Promise<Blob> {
   const response = await fetch(`${API_BASE_URL}/files/${id}/download`, {
     headers: getAuthHeaders(),
@@ -151,10 +144,6 @@ export async function downloadImage(id: number): Promise<Blob> {
     throw new Error("Failed to download image");
   }
   return response.blob();
-}
-
-export function getImageDownloadUrl(id: number): string {
-  return `${API_BASE_URL}/images/${id}/download`;
 }
 
 export async function deleteImageById(id: number): Promise<DeleteResponse> {

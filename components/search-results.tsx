@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Download } from "lucide-react";
 import { ScoredChunk } from "@/types";
-import { getDownloadUrl } from "@/lib/api";
+import { downloadFile } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -35,6 +36,27 @@ function truncateText(text: string, maxLength: number = 100): string {
 }
 
 export function SearchResults({ results, isLoading, hasSearched }: SearchResultsProps) {
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const handleDownload = async (id: number, fileName: string) => {
+    setDownloadingId(id);
+    try {
+      const blob = await downloadFile(id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Failed to download file:", error);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center py-8">
@@ -80,10 +102,17 @@ export function SearchResults({ results, isLoading, hasSearched }: SearchResults
                 {formatScore(result.score)}
               </TableCell>
               <TableCell>
-                <Button variant="ghost" size="icon" asChild>
-                  <a href={getDownloadUrl(result.pdfMetadataId)} download>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDownload(result.pdfMetadataId, result.fileName)}
+                  disabled={downloadingId === result.pdfMetadataId}
+                >
+                  {downloadingId === result.pdfMetadataId ? (
+                    <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
                     <Download className="h-4 w-4" />
-                  </a>
+                  )}
                 </Button>
               </TableCell>
             </TableRow>

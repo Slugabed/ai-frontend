@@ -2,7 +2,7 @@
 
 import { Download, Image as ImageIcon } from "lucide-react";
 import { ImageSearchResult } from "@/types";
-import { getImageDownloadUrl, downloadImage } from "@/lib/api";
+import { downloadImage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
@@ -83,7 +83,7 @@ export function ImageSearchResults({ results, isLoading, hasSearched }: ImageSea
           >
             <div className="aspect-square bg-muted flex items-center justify-center">
               <img
-                src={getImageDownloadUrl(result.id)}
+                src={result.viewUrl}
                 alt={result.originalFileName}
                 className="w-full h-full object-cover"
                 onError={(e) => {

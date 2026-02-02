@@ -4,6 +4,7 @@ export interface FileInfo {
   fileSize: number;
   uploadDate: string;
   ownerEmail?: string;
+  viewUrl?: string;
 }
 
 export interface User {
@@ -51,6 +52,7 @@ export interface ImageInfo {
   height?: number;
   uploadDate: string;
   ownerEmail?: string;
+  viewUrl?: string;
 }
 
 export interface ImageSearchResult {
@@ -61,6 +63,7 @@ export interface ImageSearchResult {
   contentType: string;
   uploadDate: string;
   score: number;
+  viewUrl?: string;
 }
 
 // Health status types
