@@ -10,10 +10,11 @@ import { ImagesTable } from "@/components/images-table";
 import { ImageUpload } from "@/components/image-upload";
 import { ImageSearchSection } from "@/components/image-search-section";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, LogOut, Shield, FileText, Image as ImageIcon } from "lucide-react";
+import { RefreshCw, LogOut, Shield, FileText, Image as ImageIcon, Activity } from "lucide-react";
+import { SystemStatus } from "@/components/system-status";
 import { useAuth } from "@/contexts/auth-context";
 
-type TabType = "documents" | "images";
+type TabType = "documents" | "images" | "status";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("documents");
@@ -77,8 +78,9 @@ export default function Home() {
     );
   }
 
-  const isLoading = activeTab === "documents" ? isLoadingFiles : isLoadingImages;
-  const handleRefresh = activeTab === "documents" ? loadFiles : loadImages;
+  const isLoading = activeTab === "documents" ? isLoadingFiles : activeTab === "images" ? isLoadingImages : false;
+  const handleRefresh = activeTab === "documents" ? loadFiles : activeTab === "images" ? loadImages : () => {};
+  const showRefreshButton = activeTab !== "status";
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,19 +132,32 @@ export default function Home() {
               <ImageIcon className="h-4 w-4" />
               Images
             </button>
+            <button
+              onClick={() => setActiveTab("status")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "status"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Activity className="h-4 w-4" />
+              Status
+            </button>
           </div>
 
           <div className="flex-1" />
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+          {showRefreshButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          )}
         </div>
 
         {/* Documents Tab */}
@@ -202,6 +217,9 @@ export default function Home() {
             </div>
           </>
         )}
+
+        {/* Status Tab */}
+        {activeTab === "status" && <SystemStatus />}
       </div>
     </div>
   );

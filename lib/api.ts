@@ -1,4 +1,4 @@
-import { FileInfo, DeleteResponse, UploadResult, ScoredChunk, ImageInfo, ImageSearchResult } from "@/types";
+import { FileInfo, DeleteResponse, UploadResult, ScoredChunk, ImageInfo, ImageSearchResult, SystemHealth } from "@/types";
 import { getToken } from "./auth";
 
 const API_BASE_URL = "/api";
@@ -194,6 +194,17 @@ export async function searchImages(query: string, limit: number = 10): Promise<I
   });
   if (!response.ok) {
     throw new Error("Image search failed");
+  }
+  return response.json();
+}
+
+// Health API
+export async function fetchSystemHealth(): Promise<SystemHealth> {
+  const response = await fetch(`${API_BASE_URL}/health`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch health status");
   }
   return response.json();
 }

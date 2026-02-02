@@ -62,3 +62,16 @@ export interface ImageSearchResult {
   uploadDate: string;
   score: number;
 }
+
+// Health status types
+export interface ComponentHealth {
+  status: string;
+  url?: string;
+  error?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface SystemHealth {
+  status: string;
+  components: Record<string, ComponentHealth>;
+}
