@@ -53,6 +53,7 @@ export interface ImageInfo {
   uploadDate: string;
   ownerEmail?: string;
   viewUrl?: string;
+  thumbnailUrl?: string;
 }
 
 export interface ImageSearchResult {
@@ -64,6 +65,17 @@ export interface ImageSearchResult {
   uploadDate: string;
   score: number;
   viewUrl?: string;
+  thumbnailUrl?: string;
+}
+
+export interface PagedResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
 }
 
 // Health status types

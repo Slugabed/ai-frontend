@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { FileInfo, ImageInfo } from "@/types";
-import { fetchFiles, fetchImages } from "@/lib/api";
+import { FileInfo } from "@/types";
+import { fetchFiles } from "@/lib/api";
 import { FilesTable } from "@/components/files-table";
 import { FileUpload } from "@/components/file-upload";
 import { SearchSection } from "@/components/search-section";
@@ -19,9 +19,8 @@ type TabType = "documents" | "images" | "status";
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("documents");
   const [files, setFiles] = useState<FileInfo[]>([]);
-  const [images, setImages] = useState<ImageInfo[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(true);
-  const [isLoadingImages, setIsLoadingImages] = useState(true);
+  const [imageRefreshKey, setImageRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { user, isLoading: authLoading, isAdmin, logout } = useAuth();
 
@@ -39,26 +38,11 @@ export default function Home() {
     }
   }, []);
 
-  const loadImages = useCallback(async () => {
-    setIsLoadingImages(true);
-    setError(null);
-    try {
-      const data = await fetchImages();
-      setImages(data);
-    } catch (err) {
-      setError("Failed to load images. Is the backend running?");
-      console.error(err);
-    } finally {
-      setIsLoadingImages(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (user) {
       loadFiles();
-      loadImages();
     }
-  }, [loadFiles, loadImages, user]);
+  }, [loadFiles, user]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -78,9 +62,9 @@ export default function Home() {
     );
   }
 
-  const isLoading = activeTab === "documents" ? isLoadingFiles : activeTab === "images" ? isLoadingImages : false;
-  const handleRefresh = activeTab === "documents" ? loadFiles : activeTab === "images" ? loadImages : () => {};
-  const showRefreshButton = activeTab !== "status";
+  const isLoading = activeTab === "documents" ? isLoadingFiles : false;
+  const handleRefresh = activeTab === "documents" ? loadFiles : () => {};
+  const showRefreshButton = activeTab === "documents";
 
   return (
     <div className="min-h-screen bg-background">
@@ -194,26 +178,14 @@ export default function Home() {
           <>
             <h2 className="text-3xl font-bold mb-6">Images</h2>
 
-            <ImageUpload onUploadComplete={loadImages} />
+            <ImageUpload onUploadComplete={() => setImageRefreshKey(k => k + 1)} />
 
             <div className="mt-6">
               <ImageSearchSection />
             </div>
 
-            {error && (
-              <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md mb-4 mt-6">
-                {error}
-              </div>
-            )}
-
             <div className="mt-6">
-              {isLoadingImages ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">Loading...</p>
-                </div>
-              ) : (
-                <ImagesTable images={images} onRefresh={loadImages} isAdmin={isAdmin} />
-              )}
+              <ImagesTable onRefresh={() => {}} isAdmin={isAdmin} refreshKey={imageRefreshKey} />
             </div>
           </>
         )}

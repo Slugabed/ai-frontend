@@ -83,7 +83,7 @@ export function ImageSearchResults({ results, isLoading, hasSearched }: ImageSea
           >
             <div className="aspect-square bg-muted flex items-center justify-center">
               <img
-                src={result.viewUrl}
+                src={result.thumbnailUrl || result.viewUrl}
                 alt={result.originalFileName}
                 className="w-full h-full object-cover"
                 onError={(e) => {

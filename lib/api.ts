@@ -1,4 +1,4 @@
-import { FileInfo, DeleteResponse, UploadResult, ScoredChunk, ImageInfo, ImageSearchResult, SystemHealth } from "@/types";
+import { FileInfo, DeleteResponse, UploadResult, ScoredChunk, ImageInfo, ImageSearchResult, SystemHealth, PagedResponse } from "@/types";
 import { getToken } from "./auth";
 
 const API_BASE_URL = "/api";
@@ -128,6 +128,17 @@ export async function uploadImages(files: File[]): Promise<UploadResult[]> {
 
 export async function fetchImages(): Promise<ImageInfo[]> {
   const response = await fetch(`${API_BASE_URL}/images`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch images");
+  }
+  const data: PagedResponse<ImageInfo> = await response.json();
+  return data.content;
+}
+
+export async function fetchImagesPage(page: number = 0, size: number = 30): Promise<PagedResponse<ImageInfo>> {
+  const response = await fetch(`${API_BASE_URL}/images?page=${page}&size=${size}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) {
