@@ -1,62 +1,25 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Upload, X, CheckCircle, AlertCircle } from "lucide-react";
-import { uploadFiles } from "@/lib/api";
-import { UploadResult } from "@/types";
+import { Upload, X, CheckCircle, AlertCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUploadQueue } from "@/contexts/upload-queue-context";
 
-interface FileUploadProps {
-  onUploadComplete: () => void;
-}
-
-interface UploadingFile {
-  file: File;
-  status: "pending" | "uploading" | "success" | "error";
-  message?: string;
-}
-
-export function FileUpload({ onUploadComplete }: FileUploadProps) {
+export function FileUpload() {
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  const { queuedItems, enqueue, removeFromQueue, retryFailed } = useUploadQueue();
 
-  const handleFiles = useCallback(async (files: File[]) => {
-    const pdfFiles = files.filter((f) => f.type === "application/pdf");
+  const pdfItems = queuedItems.filter((i) => i.fileType === "pdf");
+  const hasFailedItems = pdfItems.some((i) => i.status === "failed");
 
-    if (pdfFiles.length === 0) {
-      return;
-    }
-
-    const newUploadingFiles: UploadingFile[] = pdfFiles.map((file) => ({
-      file,
-      status: "uploading" as const,
-    }));
-
-    setUploadingFiles((prev) => [...prev, ...newUploadingFiles]);
-
-    const results = await uploadFiles(pdfFiles);
-
-    setUploadingFiles((prev) =>
-      prev.map((uf) => {
-        const result = results.find((r) => r.fileName === uf.file.name);
-        if (result) {
-          return {
-            ...uf,
-            status: result.success ? "success" : "error",
-            message: result.message,
-          };
-        }
-        return uf;
-      })
-    );
-
-    onUploadComplete();
-
-    // Clear completed uploads after 3 seconds
-    setTimeout(() => {
-      setUploadingFiles((prev) => prev.filter((uf) => uf.status === "uploading"));
-    }, 3000);
-  }, [onUploadComplete]);
+  const handleFiles = useCallback(
+    async (files: File[]) => {
+      const pdfFiles = files.filter((f) => f.type === "application/pdf");
+      if (pdfFiles.length === 0) return;
+      await enqueue(pdfFiles, "pdf");
+    },
+    [enqueue]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -89,9 +52,12 @@ export function FileUpload({ onUploadComplete }: FileUploadProps) {
     [handleFiles]
   );
 
-  const removeUploadingFile = (fileName: string) => {
-    setUploadingFiles((prev) => prev.filter((uf) => uf.file.name !== fileName));
-  };
+  // Only show active (non-completed) items, or recently completed
+  const visibleItems = pdfItems.filter(
+    (i) =>
+      i.status !== "completed" ||
+      Date.now() - i.createdAt < 60 * 1000
+  );
 
   return (
     <div className="space-y-4">
@@ -101,9 +67,10 @@ export function FileUpload({ onUploadComplete }: FileUploadProps) {
         onDrop={handleDrop}
         className={`
           border-2 border-dashed rounded-lg p-8 text-center transition-colors
-          ${isDragging
-            ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-muted-foreground/50"
+          ${
+            isDragging
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25 hover:border-muted-foreground/50"
           }
         `}
       >
@@ -126,30 +93,46 @@ export function FileUpload({ onUploadComplete }: FileUploadProps) {
         </Button>
       </div>
 
-      {uploadingFiles.length > 0 && (
+      {visibleItems.length > 0 && (
         <div className="space-y-2">
-          {uploadingFiles.map((uf) => (
+          {hasFailedItems && (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={retryFailed}>
+                <RotateCcw className="h-3 w-3 mr-2" />
+                Retry failed
+              </Button>
+            </div>
+          )}
+          {visibleItems.map((item) => (
             <div
-              key={uf.file.name}
+              key={item.id}
               className="flex items-center justify-between p-3 bg-muted rounded-md"
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                {uf.status === "uploading" && (
+                {(item.status === "uploading" || item.status === "queued") && (
                   <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 )}
-                {uf.status === "success" && (
+                {item.status === "completed" && (
                   <CheckCircle className="h-4 w-4 text-green-500" />
                 )}
-                {uf.status === "error" && (
+                {item.status === "failed" && (
                   <AlertCircle className="h-4 w-4 text-destructive" />
                 )}
-                <span className="truncate text-sm">{uf.file.name}</span>
+                <span className="truncate text-sm">{item.fileName}</span>
+                {item.status === "queued" && (
+                  <span className="text-xs text-muted-foreground">queued</span>
+                )}
+                {item.status === "failed" && item.errorMessage && (
+                  <span className="text-xs text-destructive truncate">
+                    {item.errorMessage}
+                  </span>
+                )}
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => removeUploadingFile(uf.file.name)}
+                onClick={() => removeFromQueue(item.id)}
               >
                 <X className="h-3 w-3" />
               </Button>

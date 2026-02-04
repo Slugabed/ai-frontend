@@ -1,71 +1,29 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Upload, X, CheckCircle, AlertCircle, Image as ImageIcon } from "lucide-react";
-import { uploadImages } from "@/lib/api";
-import { UploadResult } from "@/types";
+import { X, CheckCircle, AlertCircle, Image as ImageIcon, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface ImageUploadProps {
-  onUploadComplete: () => void;
-}
-
-interface UploadingFile {
-  file: File;
-  status: "pending" | "uploading" | "success" | "error";
-  message?: string;
-  preview?: string;
-}
+import { useUploadQueue } from "@/contexts/upload-queue-context";
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
-export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
+export function ImageUpload() {
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  const { queuedItems, enqueue, removeFromQueue, retryFailed } = useUploadQueue();
 
-  const handleFiles = useCallback(async (files: File[]) => {
-    const imageFiles = files.filter((f) => ACCEPTED_IMAGE_TYPES.includes(f.type));
+  const imageItems = queuedItems.filter((i) => i.fileType === "image");
+  const hasFailedItems = imageItems.some((i) => i.status === "failed");
 
-    if (imageFiles.length === 0) {
-      return;
-    }
-
-    const newUploadingFiles: UploadingFile[] = imageFiles.map((file) => ({
-      file,
-      status: "uploading" as const,
-      preview: URL.createObjectURL(file),
-    }));
-
-    setUploadingFiles((prev) => [...prev, ...newUploadingFiles]);
-
-    const results = await uploadImages(imageFiles);
-
-    setUploadingFiles((prev) =>
-      prev.map((uf) => {
-        const result = results.find((r) => r.fileName === uf.file.name);
-        if (result) {
-          return {
-            ...uf,
-            status: result.success ? "success" : "error",
-            message: result.message,
-          };
-        }
-        return uf;
-      })
-    );
-
-    onUploadComplete();
-
-    // Clear completed uploads after 3 seconds
-    setTimeout(() => {
-      setUploadingFiles((prev) => {
-        prev.forEach((uf) => {
-          if (uf.preview) URL.revokeObjectURL(uf.preview);
-        });
-        return prev.filter((uf) => uf.status === "uploading");
-      });
-    }, 3000);
-  }, [onUploadComplete]);
+  const handleFiles = useCallback(
+    async (files: File[]) => {
+      const imageFiles = files.filter((f) =>
+        ACCEPTED_IMAGE_TYPES.includes(f.type)
+      );
+      if (imageFiles.length === 0) return;
+      await enqueue(imageFiles, "image");
+    },
+    [enqueue]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -98,13 +56,12 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
     [handleFiles]
   );
 
-  const removeUploadingFile = (fileName: string) => {
-    setUploadingFiles((prev) => {
-      const fileToRemove = prev.find((uf) => uf.file.name === fileName);
-      if (fileToRemove?.preview) URL.revokeObjectURL(fileToRemove.preview);
-      return prev.filter((uf) => uf.file.name !== fileName);
-    });
-  };
+  // Only show active (non-completed) items, or recently completed
+  const visibleItems = imageItems.filter(
+    (i) =>
+      i.status !== "completed" ||
+      Date.now() - i.createdAt < 60 * 1000
+  );
 
   return (
     <div className="space-y-4">
@@ -114,9 +71,10 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
         onDrop={handleDrop}
         className={`
           border-2 border-dashed rounded-lg p-8 text-center transition-colors
-          ${isDragging
-            ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-muted-foreground/50"
+          ${
+            isDragging
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25 hover:border-muted-foreground/50"
           }
         `}
       >
@@ -139,42 +97,49 @@ export function ImageUpload({ onUploadComplete }: ImageUploadProps) {
         </Button>
       </div>
 
-      {uploadingFiles.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {uploadingFiles.map((uf) => (
+      {visibleItems.length > 0 && (
+        <div className="space-y-2">
+          {hasFailedItems && (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={retryFailed}>
+                <RotateCcw className="h-3 w-3 mr-2" />
+                Retry failed
+              </Button>
+            </div>
+          )}
+          {visibleItems.map((item) => (
             <div
-              key={uf.file.name}
-              className="relative group rounded-lg overflow-hidden border bg-muted"
+              key={item.id}
+              className="flex items-center justify-between p-3 bg-muted rounded-md"
             >
-              {uf.preview && (
-                <img
-                  src={uf.preview}
-                  alt={uf.file.name}
-                  className="w-full h-32 object-cover"
-                />
-              )}
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                {uf.status === "uploading" && (
-                  <div className="h-8 w-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {(item.status === "uploading" || item.status === "queued") && (
+                  <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 )}
-                {uf.status === "success" && (
-                  <CheckCircle className="h-8 w-8 text-green-400" />
+                {item.status === "completed" && (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
                 )}
-                {uf.status === "error" && (
-                  <AlertCircle className="h-8 w-8 text-red-400" />
+                {item.status === "failed" && (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                )}
+                <span className="truncate text-sm">{item.fileName}</span>
+                {item.status === "queued" && (
+                  <span className="text-xs text-muted-foreground">queued</span>
+                )}
+                {item.status === "failed" && item.errorMessage && (
+                  <span className="text-xs text-destructive truncate">
+                    {item.errorMessage}
+                  </span>
                 )}
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/70 text-white"
-                onClick={() => removeUploadingFile(uf.file.name)}
+                className="h-6 w-6"
+                onClick={() => removeFromQueue(item.id)}
               >
                 <X className="h-3 w-3" />
               </Button>
-              <div className="p-2">
-                <p className="text-xs truncate">{uf.file.name}</p>
-              </div>
             </div>
           ))}
         </div>

@@ -12,26 +12,28 @@ function getAuthHeaders(): HeadersInit {
   return headers;
 }
 
-export async function uploadFile(file: File): Promise<UploadResult> {
+export async function uploadFile(file: File | Blob, fileName?: string, signal?: AbortSignal): Promise<UploadResult> {
   const formData = new FormData();
-  formData.append("file", file);
+  const name = fileName ?? (file instanceof File ? file.name : "upload");
+  formData.append("file", file, name);
 
   const response = await fetch(`${API_BASE_URL}/ingest`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: formData,
+    signal,
   });
 
   const message = await response.text();
   return {
-    success: response.ok,
+    success: response.ok || response.status === 202,
     message,
-    fileName: file.name,
+    fileName: name,
   };
 }
 
 export async function uploadFiles(files: File[]): Promise<UploadResult[]> {
-  return Promise.all(files.map(uploadFile));
+  return Promise.all(files.map(f => uploadFile(f)));
 }
 
 export async function downloadFile(id: number): Promise<Blob> {
@@ -96,34 +98,36 @@ export async function searchDocuments(question: string): Promise<ScoredChunk[]> 
 }
 
 // Image API functions
-export async function uploadImage(file: File): Promise<UploadResult> {
+export async function uploadImage(file: File | Blob, fileName?: string, signal?: AbortSignal): Promise<UploadResult> {
   const formData = new FormData();
-  formData.append("file", file);
+  const name = fileName ?? (file instanceof File ? file.name : "upload");
+  formData.append("file", file, name);
 
   const response = await fetch(`${API_BASE_URL}/images`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: formData,
+    signal,
   });
 
-  if (response.ok) {
+  if (response.ok || response.status === 202) {
     const data = await response.json();
     return {
       success: true,
       message: `Image uploaded: ${data.originalFileName}`,
-      fileName: file.name,
+      fileName: name,
     };
   } else {
     return {
       success: false,
       message: "Failed to upload image",
-      fileName: file.name,
+      fileName: name,
     };
   }
 }
 
 export async function uploadImages(files: File[]): Promise<UploadResult[]> {
-  return Promise.all(files.map(uploadImage));
+  return Promise.all(files.map(f => uploadImage(f)));
 }
 
 export async function fetchImages(): Promise<ImageInfo[]> {

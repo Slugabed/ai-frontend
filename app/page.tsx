@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { FileInfo } from "@/types";
 import { fetchFiles } from "@/lib/api";
 import { FilesTable } from "@/components/files-table";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, LogOut, Shield, FileText, Image as ImageIcon, Activity } from "lucide-react";
 import { SystemStatus } from "@/components/system-status";
 import { useAuth } from "@/contexts/auth-context";
+import { useUploadQueue } from "@/contexts/upload-queue-context";
 
 type TabType = "documents" | "images" | "status";
 
@@ -23,6 +24,7 @@ export default function Home() {
   const [imageRefreshKey, setImageRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { user, isLoading: authLoading, isAdmin, logout } = useAuth();
+  const { queuedItems } = useUploadQueue();
 
   const loadFiles = useCallback(async () => {
     setIsLoadingFiles(true);
@@ -43,6 +45,25 @@ export default function Home() {
       loadFiles();
     }
   }, [loadFiles, user]);
+
+  // Auto-refresh file/image lists when uploads complete
+  const prevCompletedRef = useRef(0);
+  useEffect(() => {
+    const completedCount = queuedItems.filter(
+      (i) => i.status === "completed"
+    ).length;
+    if (completedCount > prevCompletedRef.current && prevCompletedRef.current >= 0) {
+      const pdfCompleted = queuedItems.some(
+        (i) => i.status === "completed" && i.fileType === "pdf"
+      );
+      const imageCompleted = queuedItems.some(
+        (i) => i.status === "completed" && i.fileType === "image"
+      );
+      if (pdfCompleted) loadFiles();
+      if (imageCompleted) setImageRefreshKey((k) => k + 1);
+    }
+    prevCompletedRef.current = completedCount;
+  }, [queuedItems, loadFiles]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -149,7 +170,7 @@ export default function Home() {
           <>
             <h2 className="text-3xl font-bold mb-6">PDF Files</h2>
 
-            <FileUpload onUploadComplete={loadFiles} />
+            <FileUpload />
 
             <div className="mt-6">
               <SearchSection />
@@ -178,7 +199,7 @@ export default function Home() {
           <>
             <h2 className="text-3xl font-bold mb-6">Images</h2>
 
-            <ImageUpload onUploadComplete={() => setImageRefreshKey(k => k + 1)} />
+            <ImageUpload />
 
             <div className="mt-6">
               <ImageSearchSection />

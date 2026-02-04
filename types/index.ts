@@ -5,6 +5,7 @@ export interface FileInfo {
   uploadDate: string;
   ownerEmail?: string;
   viewUrl?: string;
+  processingStatus?: string;
 }
 
 export interface User {
@@ -54,6 +55,7 @@ export interface ImageInfo {
   ownerEmail?: string;
   viewUrl?: string;
   thumbnailUrl?: string;
+  processingStatus?: string;
 }
 
 export interface ImageSearchResult {
